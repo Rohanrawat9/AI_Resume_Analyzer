@@ -11,6 +11,8 @@ export default function ResumeUploadForm() {
     }
   };
 
+  console.log("helped by sumit")
+
   const handleReset = () => {
     setFile(null);
     setJobDescription("");
