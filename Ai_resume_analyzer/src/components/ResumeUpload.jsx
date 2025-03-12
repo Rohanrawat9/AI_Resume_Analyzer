@@ -5,7 +5,7 @@ export default function ResumeUploadForm() {
   const [model, setModel] = useState("gpt-4o-mini");
   const [jobDescription, setJobDescription] = useState("");
   
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event) => {
     if (event.target.files) {
       setFile(event.target.files[0]);
     }
@@ -16,7 +16,7 @@ export default function ResumeUploadForm() {
     setJobDescription("");
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
     if (!file) return;
     console.log("Uploading file:", file);
