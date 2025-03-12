@@ -1,14 +1,11 @@
-import { PORT } from "./config/dotenv.js";
-import fs from "fs"
-import express from "express"
-import path from "path";
-import { fileURLToPath } from "url";
+const { PORT } = require("./config/dotenv.js");
+const fs = require("fs");
+const express = require("express");
+const path = require("path");
+const pdfParse = require("pdf-parse");
+const cors = require('cors');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-//import multer from "multer"
-import cors from "cors" // cors ka use check kr , when integrating frontend request to backend we first have to set cors in backend so that it will allow the subsequent request
+// cors ka use check kr , when integrating frontend request to backend we first have to set cors in backend so that it will allow the subsequent request
 
 const app = express();
 
@@ -27,14 +24,19 @@ app.post("/upload", (req, res) => {
     const uploadPath = path.join(__dirname, "uploads", `uploaded-${Date.now()}.pdf`);
 
     // Write binary data to a file
-    fs.writeFile(uploadPath, req.body, (err) => {
+    fs.writeFile(uploadPath, req.body, async (err) => {
         if (err) {
             console.error("Error writing file:", err);
             return res.status(500).json({ message: "File upload failed" });
         }
         console.log("File saved:", uploadPath);
         // read saved pdf text
-        console.log('read text');
+        const dataBuffer = fs.readFileSync(uploadPath);
+        const pdfData = await pdfParse(dataBuffer);
+        const extractedText = pdfData.text;
+
+        console.log("Extracted PDF Text:", extractedText);
+
         // use ai api to send this pdf text and a prompt telling AI to analyize this text
         // response will be send in bellow res.json
         res.json({ message: "File uploaded successfully", filePath: uploadPath });
