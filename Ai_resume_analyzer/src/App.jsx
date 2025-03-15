@@ -1,12 +1,12 @@
-import React from 'react'
-import ResumeUpload from './components/ResumeUpload'
+import React from "react";
+import ResumeUpload from "./components/ResumeUpload";
 
-const App = () => {
+function App() {
   return (
-    <div>
+    <main className="bg-slate-800 h-screen text-white">
       <ResumeUpload/>
-    </div>
-  )
+    </main>
+  );
 }
 
-export default App
+export default App;
