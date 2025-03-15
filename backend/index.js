@@ -3,53 +3,88 @@ const fs = require("fs");
 const express = require("express");
 const path = require("path");
 const pdfParse = require("pdf-parse");
-const cors = require('cors');
-
-// cors ka use check kr , when integrating frontend request to backend we first have to set cors in backend so that it will allow the subsequent request
+const cors = require("cors");
+const axios = require("axios");
+const multer = require("multer");
 
 const app = express();
 
+// Enable CORS for frontend requests
 app.use(cors());
+app.use(express.json());
 
-// yaha pe api banani hai jismai tumne front end sai bheji file lani hai aur console krna hai
-// uske badh usko uploads folder mai write krna hai -> hint: use fs and pathl
+// Google Gemini API Key (Make sure to set it in your .env file)
+const API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
-app.use(express.raw({ type: "application/pdf", limit: "10mb" }));
+// Multer Setup for PDF Uploads
+const upload = multer({ dest: "uploads/" });
 
-app.post("/upload", (req, res) => {
-    if (!req.body || req.body.length === 0) {
-        return res.status(400).json({ message: "No file uploaded" });
-    }
-
-    const uploadPath = path.join(__dirname, "uploads", `uploaded-${Date.now()}.pdf`);
-
-    // Write binary data to a file
-    fs.writeFile(uploadPath, req.body, async (err) => {
-        if (err) {
-            console.error("Error writing file:", err);
-            return res.status(500).json({ message: "File upload failed" });
+// AI Resume Analysis Route
+app.post("/analyze-resume", upload.single("resume"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "No file uploaded." });
         }
-        console.log("File saved:", uploadPath);
-        // read saved pdf text
-        const dataBuffer = fs.readFileSync(uploadPath);
-        const pdfData = await pdfParse(dataBuffer);
-        const extractedText = pdfData.text;
 
-        console.log("Extracted PDF Text:", extractedText);
+        // Convert PDF to Text
+        const pdfBuffer = fs.readFileSync(req.file.path);
+        const pdfData = await pdfParse(pdfBuffer);
+        const resumeText = pdfData.text;
 
-        // use ai api to send this pdf text and a prompt telling AI to analyize this text
-        // response will be send in bellow res.json
-        res.json({ message: "File uploaded successfully", filePath: uploadPath });
-    });
+        console.log("Extracted PDF Text:", resumeText);
+
+        // AI Prompt for Resume Analysis
+        const prompt = `
+        You are an AI Resume Analyst. Analyze the given resume and provide structured feedback with the following format:
+
+        **🔹 Strengths:**  
+        - Highlight key skills and experiences relevant to industry standards.  
+
+        **🔹 Weaknesses:**  
+        - Mention missing skills, formatting issues, or areas needing improvement.  
+
+        **🔹 Suggested Improvements:**  
+        - Provide specific actions the candidate can take to enhance their resume.  
+
+        **🔹 Job Role Suitability:**  
+        - Suggest which job roles the candidate is best suited for based on the resume content.  
+
+        **🔹 Industry Standards Match:**  
+        - Rate the resume on a scale of 1-10 based on clarity, structure, and skill relevance.  
+
+        Here is the resume content:
+        ${resumeText}
+        `;
+
+        // Call Google Gemini API
+        const response = await axios.post(
+            GEMINI_URL,
+            {
+                contents: [{ parts: [{ text: prompt }] }],
+            },
+            { headers: { "Content-Type": "application/json" } }
+        );
+
+        const aiFeedback = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No feedback available.";
+
+        // Clean up uploaded file
+        fs.unlinkSync(req.file.path);
+
+        // Send AI-generated feedback to the frontend
+        res.json({ feedback: aiFeedback });
+    } catch (error) {
+        console.error("Error analyzing resume:", error);
+        res.status(500).json({ error: "Failed to analyze resume." });
+    }
 });
 
-app.get('/', (req, res) => {
-    res.json({ msg: "hello" })
-})
+// Simple Test Route
+app.get("/", (req, res) => {
+    res.json({ msg: "Hello, Resume Analyzer is running!" });
+});
 
+// Start the Server
 app.listen(PORT, () => {
-    console.log(`Server is listening on ${PORT}`)
-})
-
-// !important folder structure for backend and what each folder means
-//
+    console.log(`✅ Server is listening on ${PORT}`);
+});
